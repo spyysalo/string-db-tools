@@ -2,10 +2,24 @@
 
 # Common functionality for working with STRING DB / JensenLab tagger data
 
+import sys
+
 from collections.abc import Iterator
 from itertools import tee
 from collections import namedtuple
 from itertools import zip_longest
+
+
+StringDocument = namedtuple(
+    'StringDocument',
+    'id, other_ids, authors, forum, year, text'
+)
+
+
+StringSpan = namedtuple(
+    'StringSpan',
+    'doc_id, par_num, sent_num, start, end, text, type_id, serial'
+)
 
 
 class LookaheadIterator(Iterator):
@@ -28,16 +42,42 @@ class LookaheadIterator(Iterator):
         return self.lookahead is not None
 
 
-StringDocument = namedtuple(
-    'StringDocument',
-    'doc_id, other_ids, authors, forum, year, text'
-)
+class SpanReader:
+    """Reader for all_matches.tsv format."""
 
+    def __init__(self, stream, raise_on_error=False):
+        self.stream = stream
+        self.raise_on_error = raise_on_error
+        self.iter = LookaheadIterator(stream, start=1)
+        self.errors = 0
 
-StringSpan = namedtuple(
-    'StringSpan',
-    'doc_id, par_num, sent_num, start, end, text, type_id, serial'
-)
+    def current_doc_id(self):
+        """Return id of document at the current position of the stream."""
+        if self.iter.lookahead is None:
+            return None
+        else:
+            return self.iter.lookahead.split()[0]
+
+    def document_spans(self, doc_id):
+        """Return spans for document doc_id and advance past them.
+
+        If doc_id does not match the current position of the stream, returns
+        an empty list without advancing in the stream.
+        """
+        spans = []
+        while self.current_doc_id() == doc_id:
+            try:
+                line = self.iter.lookahead.rstrip('\n')
+                span = parse_stringdb_span_line(line)
+                spans.append(span)
+            except Exception as e:
+                self.errors += 1
+                print(f'error parsing {self.stream.name} line '
+                      f'{self.iter.index}: {e}: {line}', file=sys.stderr)
+                if self.raise_on_error:
+                    raise
+            next(self.iter)
+        return spans
 
 
 def stringdb_unescape_text(text):

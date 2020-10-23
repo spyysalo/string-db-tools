@@ -4,7 +4,7 @@ import sys
 
 from argparse import ArgumentParser
 
-from common import LookaheadIterator
+from common import SpanReader
 from common import parse_stringdb_input_line, parse_stringdb_span_line
 
 
@@ -16,53 +16,32 @@ def argparser():
 
 
 def check_spans(doc_fn, tag_fn, options):
-    tag_ln, mismatches, errors = 1, 0, 0
+    mismatches = 0
     with open(doc_fn) as doc_f:
         with open(tag_fn) as tag_f:
-            tag_iter = LookaheadIterator(tag_f)
+            span_reader = SpanReader(tag_f)
             for doc_ln, doc_l in enumerate(doc_f, start=1):
                 try:
                     doc = parse_stringdb_input_line(doc_l)
                 except:
                     raise ValueError('error parsing {} line {}: {}'.format(
                         doc_fn, doc_ln, doc_l.rstrip('\n')))
-                if tag_iter.lookahead is None:
-                    continue
 
-                while tag_iter.lookahead is not None:
-                    tag_l = tag_iter.lookahead
-                    try:
-                        span = parse_stringdb_span_line(tag_l)
-                    except Exception as e:
-                        errors += 1
-                        print('error parsing {} line {}: {}: {}'.format(
-                            tag_fn, tag_ln, e, tag_l.rstrip('\n')))
-                        next(tag_iter)
-                        tag_ln += 1
-                        continue
-
-                    if doc.doc_id != span.doc_id:
-                        # Assume both files are in document order and that
-                        # ID mismatch indicates this span is for the next
-                        # document.
-                        break
-
+                for span in span_reader.document_spans(doc.id):
                     doc_span_text = doc.text[span.start:span.end+1]
                     if doc_span_text != span.text:
                         print('text mismatch in {}: "{}" vs "{}"'.format(
-                            doc.doc_id, doc_span_text, span.text))
+                            doc.id, doc_span_text, span.text))
                         mismatches += 1
 
-                    next(tag_iter)
-                    tag_ln += 1
-
-            if tag_iter.lookahead is not None:
-                print('ERROR: extra lines in {}'.format(tag_fn))
+            span_count, errors = span_reader.iter.index-1, span_reader.errors
+            if span_reader.current_doc_id() is not None:
+                print(f'ERROR: extra lines in {tag_fn}')
             if mismatches or errors:
-                print('Checked {} spans, found {} errors and {} mismatches'.\
-                      format(tag_ln-1, errors, mismatches))
+                print(f'Checked {span_count} spans, found {errors} errors '
+                      f'and {mismatches} mismatches')
             else:
-                print('OK, checked {} spans'.format(tag_ln-1))
+                print(f'OK, checked {span_count} spans')
 
 
 def main(argv):
