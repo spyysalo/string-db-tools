@@ -9,22 +9,32 @@ from common import DocReader, SpanReader
 
 def argparser():
     ap = ArgumentParser()
+    ap.add_argument('--byte-offsets', default=False, action='store_true',
+                    help='offsets are byte- instead of character-based')
     ap.add_argument('docs', help='documents in database_documents.tsv format')
     ap.add_argument('tags', help='tagged strings in all_matches.tsv format')
     return ap
 
 
+def open_file(fn, options):
+    if options.byte_offsets:
+        # https://www.python.org/dev/peps/pep-0383/
+        return open(fn, encoding='ascii', errors='surrogateescape')
+    else:
+        return open(fn)
+
+
 def check_spans(doc_fn, tag_fn, options):
     mismatches = 0
-    with open(doc_fn) as doc_f:
+    with open_file(doc_fn, options) as doc_f:
         doc_reader = DocReader(doc_f)
-        with open(tag_fn) as tag_f:
+        with open_file(tag_fn, options) as tag_f:
             span_reader = SpanReader(tag_f)
             for doc in doc_reader:
                 for span in span_reader.document_spans(doc.id):
                     doc_span_text = doc.text[span.start:span.end+1]
                     if doc_span_text != span.text:
-                        print('text mismatch in {}: "{}" vs "{}"'.format(
+                        print('text mismatch in {} (consider --byte-offsets?): "{}" vs "{}"'.format(
                             doc.id, doc_span_text, span.text))
                         mismatches += 1
 
