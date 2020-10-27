@@ -4,29 +4,23 @@ import sys
 
 from argparse import ArgumentParser
 
-from common import SpanReader
-from common import parse_stringdb_input_line, parse_stringdb_span_line
+from common import DocReader, SpanReader
 
 
 def argparser():
     ap = ArgumentParser()
     ap.add_argument('docs', help='documents in database_documents.tsv format')
-    ap.add_argument('tags', help='tagged string in all_matches.tsv format')
+    ap.add_argument('tags', help='tagged strings in all_matches.tsv format')
     return ap
 
 
 def check_spans(doc_fn, tag_fn, options):
     mismatches = 0
     with open(doc_fn) as doc_f:
+        doc_reader = DocReader(doc_f)
         with open(tag_fn) as tag_f:
             span_reader = SpanReader(tag_f)
-            for doc_ln, doc_l in enumerate(doc_f, start=1):
-                try:
-                    doc = parse_stringdb_input_line(doc_l)
-                except:
-                    raise ValueError('error parsing {} line {}: {}'.format(
-                        doc_fn, doc_ln, doc_l.rstrip('\n')))
-
+            for doc in doc_reader:
                 for span in span_reader.document_spans(doc.id):
                     doc_span_text = doc.text[span.start:span.end+1]
                     if doc_span_text != span.text:
