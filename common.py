@@ -164,6 +164,13 @@ class SpanReader:
         else:
             return self.iter.lookahead.split()[0]
 
+    def document_lines(self, doc_id):
+        """Return lines for document doc_id and advance past them."""
+        spans = []
+        while self.current_doc_id() == doc_id:
+            spans.append(next(self.iter))
+        return spans
+
     def document_spans(self, doc_id):
         """Return spans for document doc_id and advance past them.
 
