@@ -96,8 +96,11 @@ class StringSpan:
             return self.type < other.type    # arbitrary but fixed
 
     def __str__(self):
-        return (f'{self.line_no}\t{self.type}\t{self.start}\t{self.end}\t'
-                f'{self.text}')
+        return '\t'.join([
+            self.doc_id, self.par_num, self.sent_num,
+            str(self.start), str(self.end),
+            self.text, self.type, self.serial
+        ])
 
 
 class LookaheadIterator(Iterator):
