@@ -44,15 +44,29 @@ def type_name(type_):
         return TYPE_MAP.get(type_, 'UNKNOWN-TYPE')
 
 
-StringDocument = namedtuple(
-    'StringDocument',
-    'id, other_ids, authors, forum, year, text'
-)
+class StringDocument:
+    def __init__(self, id_, other_ids, authors, forum, year, text):
+        self.id = id_
+        self.other_ids = other_ids
+        self.authors = authors
+        self.forum = forum
+        self.year = year
+        self.text = stringdb_unescape_text(text)
+
+    def __str__(self):
+        return '\t'.join([
+            self.id,
+            self.other_ids,
+            self.authors,
+            self.forum,
+            self.year,
+            stringdb_escape_text(self.text)
+        ])
 
 
 class StringSpan:
     def __init__(self, doc_id, par_num, sent_num, start, end, text, type_,
-                 serial, line_no=None, no_type_mapping=False):
+                 serial, source=None, line_no=None, no_type_mapping=False):
         self.doc_id = doc_id
         self.par_num = par_num
         self.sent_num = sent_num
@@ -60,7 +74,8 @@ class StringSpan:
         self.end = end
         self.text = text
         self.type = type_
-        self.serial = serial
+        self.serials = [serial]
+        self.source = source
         self.line_no = line_no
 
         if not no_type_mapping:
@@ -96,11 +111,14 @@ class StringSpan:
             return self.type < other.type    # arbitrary but fixed
 
     def __str__(self):
-        return '\t'.join([
+        fields = [
             self.doc_id, self.par_num, self.sent_num,
             str(self.start), str(self.end),
-            self.text, self.type, self.serial
-        ])
+            self.text, self.type, ','.join(self.serials)
+        ]
+        if self.source is not None:
+            fields.append(self.source)
+        return '\t'.join(fields)
 
 
 class LookaheadIterator(Iterator):
@@ -150,9 +168,9 @@ class DocReader(Iterator):
 class SpanReader:
     """Reader for all_matches.tsv format."""
 
-    def __init__(self, stream, raise_on_error=False):
+    def __init__(self, stream, source=None, raise_on_error=False):
         self.stream = stream
-        self.source = stream.name
+        self.source = source if source is not None else stream.name
         self.raise_on_error = raise_on_error
         self.iter = LookaheadIterator(stream, start=1)
         self.errors = 0
@@ -181,7 +199,7 @@ class SpanReader:
         while self.current_doc_id() == doc_id:
             try:
                 line = self.iter.lookahead.rstrip('\n')
-                span = parse_stringdb_span_line(line)
+                span = parse_stringdb_span_line(line, source=self.source)
                 span.line_no = self.iter.index
                 spans.append(span)
             except Exception as e:
@@ -192,6 +210,11 @@ class SpanReader:
                     raise
             next(self.iter)
         return spans
+
+
+def stringdb_escape_text(text):
+    """Escape text for database_documents.tsv format."""
+    return text.replace('\\', '\\\\').replace('\t', '\\t')
 
 
 def stringdb_unescape_text(text):
@@ -217,18 +240,19 @@ def parse_stringdb_input_line(line):
     line = line.rstrip('\n')
     fields = line.split('\t')
     doc_id, other_ids, authors, forum, year, text = fields
-    text = stringdb_unescape_text(text)
     return StringDocument(doc_id, other_ids, authors, forum, year, text)
 
 
-def parse_stringdb_span_line(line):
+def parse_stringdb_span_line(line, source=None):
     """Parse line in all_matches.tsv format, return StringSpan."""
     line = line.rstrip('\n')
     fields = line.split('\t')
     doc_id, par_num, sent_num, start, end, text, type_, serial = fields
     start, end = int(start), int(end)
     return StringSpan(
-        doc_id, par_num, sent_num, start, end, text, type_, serial)
+        doc_id, par_num, sent_num, start, end, text, type_, serial,
+        source=source
+    )
 
 
 def stream_documents(fn):
