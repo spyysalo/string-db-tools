@@ -40,6 +40,9 @@ def cut_documents(doc_fn, out_fn, options):
             for doc_idx, doc in enumerate(doc_reader):
                 cut_count += cut_document(doc, options)
                 print(doc, file=out_f)
+                if (doc_idx+1) % 100000 == 0:
+                    print(f'processed {doc_idx+1} documents',
+                          file=sys.stderr)
     print(f'cut {cut_count}/{doc_idx} documents ({cut_count/doc_idx:.1%})',
           file=sys.stderr)
 
