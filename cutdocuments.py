@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Cut out of STRING DB database_documents.tsv format."""
+"""Cut parts out of STRING DB database_documents.tsv format."""
 
 import sys
 
@@ -27,6 +27,8 @@ def cut_document(doc, options):
         if len(sections) > 2:
             doc.text = '\t'.join(sections[:2])
             return True
+    else:
+        raise ValueError(options.cut)
     return False
 
 
