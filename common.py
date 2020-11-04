@@ -265,6 +265,19 @@ def stream_documents(fn):
             yield document
 
 
+def open_file(fn, mode, options):
+    if options.char_offsets:
+        return open(fn, mode)
+    else:
+        # https://www.python.org/dev/peps/pep-0383/ (Python 3.1+)
+        return open(fn, mode, encoding='ascii', errors='surrogateescape')
+
+
+def safe_str(string):
+    # workaround for 'utf-8' codec can't encode [...]: surrogates not allowed
+    return string.encode('utf-8', 'replace').decode()
+
+
 if __name__ == '__main__':
     import sys
 
