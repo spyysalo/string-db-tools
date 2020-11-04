@@ -61,7 +61,7 @@ def cut_tags(doc_fn, tag_fn, out_fn, options):
         with open_file(tag_fn, 'r', options) as tag_f:
             span_reader = SpanReader(tag_f, no_type_mapping=True)
             with open_file(out_fn, 'w', options) as out_f:
-                for doc in doc_reader:
+                for doc_idx, doc in enumerate(doc_reader):
                     offset_map = get_offset_map(doc, options)
                     if offset_map is None:
                         # no-op, quick copy without parsing
@@ -76,6 +76,9 @@ def cut_tags(doc_fn, tag_fn, out_fn, options):
                         total += len(spans)
                         for span in mapped:
                             print(span, file=out_f)
+                    if (doc_idx+1) % 100000 == 0:
+                        print(f'processed {doc_idx+1} documents',
+                              file=sys.stderr)
     print(f'removed {removed}/{total} spans ({removed/total:.1%})',
           file=sys.stderr)
 
