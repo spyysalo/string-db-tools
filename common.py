@@ -253,7 +253,12 @@ def parse_stringdb_span_line(line, source=None, no_type_mapping=False):
     """Parse line in all_matches.tsv format, return StringSpan."""
     line = line.rstrip('\n')
     fields = line.split('\t')
-    doc_id, par_num, sent_num, start, end, text, type_, serial = fields
+    doc_id, par_num, sent_num, start, end, text, type_, serial = fields[:8]
+    if source is True:    # source as separate field
+        source = fields[8]
+        assert len(fields) == 9
+    else:
+        assert len(fields) == 8
     start, end = int(start), int(end)
     return StringSpan(
         doc_id, par_num, sent_num, start, end, text, type_, serial,
