@@ -168,10 +168,12 @@ class DocReader(Iterator):
 class SpanReader:
     """Reader for all_matches.tsv format."""
 
-    def __init__(self, stream, source=None, raise_on_error=False):
+    def __init__(self, stream, source=None, raise_on_error=False,
+                 no_type_mapping=False):
         self.stream = stream
-        self.source = source if source is not None else stream.name
+        self.source = source
         self.raise_on_error = raise_on_error
+        self.no_type_mapping = no_type_mapping
         self.iter = LookaheadIterator(stream, start=1)
         self.errors = 0
 
@@ -199,7 +201,11 @@ class SpanReader:
         while self.current_doc_id() == doc_id:
             try:
                 line = self.iter.lookahead.rstrip('\n')
-                span = parse_stringdb_span_line(line, source=self.source)
+                span = parse_stringdb_span_line(
+                    line,
+                    source=self.source,
+                    no_type_mapping=self.no_type_mapping
+                )
                 span.line_no = self.iter.index
                 spans.append(span)
             except Exception as e:
@@ -243,7 +249,7 @@ def parse_stringdb_input_line(line):
     return StringDocument(doc_id, other_ids, authors, forum, year, text)
 
 
-def parse_stringdb_span_line(line, source=None):
+def parse_stringdb_span_line(line, source=None, no_type_mapping=False):
     """Parse line in all_matches.tsv format, return StringSpan."""
     line = line.rstrip('\n')
     fields = line.split('\t')
@@ -251,7 +257,7 @@ def parse_stringdb_span_line(line, source=None):
     start, end = int(start), int(end)
     return StringSpan(
         doc_id, par_num, sent_num, start, end, text, type_, serial,
-        source=source
+        source=source, no_type_mapping=no_type_mapping
     )
 
 
