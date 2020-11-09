@@ -284,9 +284,25 @@ def open_file(fn, mode, options):
         return open(fn, mode, encoding='ascii', errors='surrogateescape')
 
 
+def load_ids(fn, options):
+    ids = set()
+    with open_file(fn, 'r', options) as f:
+        for ln, l in enumerate(f, start=1):
+            l = l.strip()
+            ids.add(l)
+    print(f'read {len(ids)} ids from {fn}', file=sys.stderr)
+    return ids
+
+
 def safe_str(string):
     # workaround for 'utf-8' codec can't encode [...]: surrogates not allowed
     return string.encode('utf-8', 'replace').decode()
+
+
+def unique(sequence):
+    """Return unique items in sequence, preserving order."""
+    # https://www.peterbe.com/plog/fastest-way-to-uniquify-a-list-in-python-3.6
+    return list(dict.fromkeys(sequence))
 
 
 if __name__ == '__main__':
