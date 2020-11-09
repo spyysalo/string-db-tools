@@ -4,36 +4,23 @@ import sys
 
 from argparse import ArgumentParser
 
-from common import DocReader, SpanReader
+from common import DocReader, SpanReader, open_file, safe_str
 
 
 def argparser():
     ap = ArgumentParser()
-    ap.add_argument('--byte-offsets', default=False, action='store_true',
-                    help='offsets are byte- instead of character-based')
+    ap.add_argument('--char-offsets', default=False, action='store_true',
+                    help='offsets are character- instead of byte-based')
     ap.add_argument('docs', help='documents in database_documents.tsv format')
     ap.add_argument('tags', help='tagged strings in all_matches.tsv format')
     return ap
 
 
-def open_file(fn, options):
-    if options.byte_offsets:
-        # https://www.python.org/dev/peps/pep-0383/ (Python 3.1+)
-        return open(fn, encoding='ascii', errors='surrogateescape')
-    else:
-        return open(fn)
-
-
-def safe_str(string):
-    # workaround for 'utf-8' codec can't encode [...]: surrogates not allowed
-    return string.encode('utf-8', 'replace').decode()
-
-
 def check_spans(doc_fn, tag_fn, options):
     doc_count, span_count, mismatches = 0, 0, 0
-    with open_file(doc_fn, options) as doc_f:
+    with open_file(doc_fn, 'r', options) as doc_f:
         doc_reader = DocReader(doc_f)
-        with open_file(tag_fn, options) as tag_f:
+        with open_file(tag_fn, 'r', options) as tag_f:
             span_reader = SpanReader(tag_f)
             for doc in doc_reader:
                 for span in span_reader.document_spans(doc.id):
