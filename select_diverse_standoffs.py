@@ -5,9 +5,11 @@ Select standoffs containing at least one new annotated textbound name.
 """
 
 import sys
+import os
 
+from glob import glob
 from random import shuffle
-from collections import namedtuple
+from collections import namedtuple, Counter
 from argparse import ArgumentParser
 
 
@@ -16,7 +18,7 @@ Textbound = namedtuple('Textbound', 'id type start end text')
 
 def argparser():
     ap = ArgumentParser()
-    ap.add_argument('file', nargs='+')
+    ap.add_argument('dir')
     return ap
 
 
@@ -33,24 +35,42 @@ def load_textbounds(fn, options):
     return textbounds
 
 
+def common_name_ratio(overall_counts, names):
+    common_names = set([n for n, c in overall_counts.items() if c > 10])
+    return len([t for t in names if t in common_names]) / len(names)
+
+
+def known_name_ratio(overall_counts, names):
+    known_names = set(overall_counts.keys())
+    return len([t for t in names if t in known_names]) / len(names)
+
+
 def main(argv):
     args = argparser().parse_args(argv[1:])
 
+    files = glob(os.path.join(args.dir, '*.ann'))
+
     textbounds_by_path = {}
-    for fn in args.file:
+    for fn in files:
         textbounds_by_path[fn] = load_textbounds(fn, args)
 
-    seen = set()
-    shuffled_files = list(args.file)
+    seen, counts = set(), Counter()
+    shuffled_files = list(files)
     shuffle(shuffled_files)
-    for fn in args.file:
-        lc_texts = set(t.text.lower() for t in textbounds_by_path[fn])
-        if any(t for t in lc_texts if t not in seen):
-            print(fn)    # at least one new
+    for fn in shuffled_files:
+        lc_names = [t.text.lower() for t in textbounds_by_path[fn]]
+        unseen_lc_names = set(lc_names) - seen
+        if len(unseen_lc_names) < 1:
+            print('SKIP1:', fn, lc_names, file=sys.stderr)
+        elif common_name_ratio(counts, lc_names) > 0.5:
+            print('SKIP2:', fn, lc_names, file=sys.stderr)
+        elif known_name_ratio(counts, lc_names) > 0.5:
+            print('SKIP3:', fn, lc_names, file=sys.stderr)
         else:
-            print('SKIP:', fn, lc_texts, seen)
-        seen.update(lc_texts)
-        
+            print(fn)    # OK
+            seen.update(lc_names)
+            counts.update(lc_names)
+    print(counts.most_common(100), file=sys.stderr)
     return 0
 
 

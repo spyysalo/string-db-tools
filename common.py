@@ -3,6 +3,7 @@
 # Common functionality for working with STRING DB / JensenLab tagger data
 
 import sys
+import re
 
 from collections.abc import Iterator
 from itertools import tee
@@ -29,6 +30,17 @@ TYPE_MAP = {
     -31: 'Behaviour',    # NBO behaviors
     -36: 'Phenotype',    # mammalian phenotypes
 }
+
+
+# Regex for STRING identifiers that should be filtered out. Katerina:
+# COG/KOG are EggNOG identifiers and irrelevant for normalization.
+FILTER_NORM_RE = re.compile(r'^[KC]OG.*')
+
+
+# Regex for STRING identifiers prefixed by a taxnomy ID that should be
+# filtered out. Katerina: everything that has a txid 1 (root of
+# taxonomic tree) and 2759 (Eukaryota) should be filtered out.
+FILTER_PREFIXED_NORM_RE = re.compile(r'^(1|2759)\..*')
 
 
 def type_name(type_):
@@ -74,12 +86,27 @@ class StringSpan:
         self.end = end
         self.text = text
         self.type = type_
-        self.serials = [serial]
+        self.serials = serial.split(',')
         self.source = source
         self.line_no = line_no
 
+        self.serials = [
+            s for s in self.serials
+            if not FILTER_NORM_RE.match(s)
+        ]
+
         if not no_type_mapping:
+            orig_type = self.type
             self.type = type_name(self.type)
+            if self.type == 'Gene' and orig_type != 'Gene':
+                # STRING norm IDs should be prefixed by the organism ID
+                self.serials = [f'{orig_type}.{s}' for s in self.serials]
+                # And normalization to normalization to orthologous groups
+                # dropped
+                self.serials = [
+                    s for s in self.serials
+                    if not FILTER_PREFIXED_NORM_RE.match(s)
+                ]
 
     def matches(self, other):
         return self.span_matches(other) and self.type_matches(other)
@@ -89,9 +116,9 @@ class StringSpan:
 
     def type_matches(self, other):
         # type matching is case-insensitive
-        return (self.type == other.type or 
+        return (self.type == other.type or
                 self.type.lower() == other.type.lower())
-            
+
     def span_matches(self, other):
         return self.start == other.start and self.end == other.end
 

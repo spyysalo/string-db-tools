@@ -28,7 +28,7 @@ def check_spans(doc_fn, tag_fn, options):
                     if doc_span_text != span.text:
                         dt, st = safe_str(doc_span_text), safe_str(span.text)
                         print(f'text mismatch in {doc.id}: "{dt}" '
-                              f'vs "{st}"')
+                              f'vs "{st}: {span}"')
                         mismatches += 1
                     span_count += 1
                 doc_count += 1

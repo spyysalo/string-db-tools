@@ -33,8 +33,6 @@ def filter_protein_aliases(fn, options):
                 if source in TARGET_SOURCES:
                     filtered_aliases[protein_id].append((alias, source))
     for protein_id, aliases_and_sources in filtered_aliases.items():
-        if len(aliases_and_sources) < 2:
-            continue
         sorted_aliases_and_sources = sorted(
             aliases_and_sources, key=lambda a_s: SOURCE_PRIORITY.index(a_s[1]))
         for alias, source in sorted_aliases_and_sources:

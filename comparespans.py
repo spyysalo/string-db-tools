@@ -328,8 +328,6 @@ def compare_spans(doc_fn, tag_fns, names, doc_out, tag_out, options):
             spans = [validate_spans(doc.id, doc.text, s) for s in spans]
             spans = [filter_spans(s, options) for s in spans]
             spans = [deduplicate_spans(s, options) for s in spans]
-            if options.sample and random.random() > options.sample:
-                continue
             selected_for_output = False
             for i in range(len(spans)):
                 for j in range(i+1, len(spans)):
@@ -340,7 +338,8 @@ def compare_spans(doc_fn, tag_fns, names, doc_out, tag_out, options):
                     if select_document_for_output(doc, doc_stats, options):
                         selected_for_output = True
 
-            if selected_for_output and random.random() < 0.001:
+            if (selected_for_output and
+                (options.sample is None or random.random() < options.sample)):
                 print(doc, file=doc_out)
                 for s in (s for sp in spans for s in sp):
                     print(s, file=tag_out)
