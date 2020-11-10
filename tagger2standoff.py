@@ -6,7 +6,11 @@ import os
 from collections import defaultdict
 from argparse import ArgumentParser
 
-from common import DocReader, SpanReader
+from common import DocReader, SpanReader, open_file
+
+
+# Placeholder value for missing norm IDs
+DUMMY_SERIAL = 'SERIAL'
 
 
 def argparser():
@@ -17,14 +21,6 @@ def argparser():
     ap.add_argument('tags', help='tagged strings in all_matches.tsv format')
     ap.add_argument('dir', help='output directory')
     return ap
-
-
-def open_file(fn, options):
-    if not options.char_offsets:
-        # https://www.python.org/dev/peps/pep-0383/ (Python 3.1+)
-        return open(fn, encoding='ascii', errors='surrogateescape')
-    else:
-        return open(fn)
 
 
 def normalize_type(type_):
@@ -55,9 +51,9 @@ def deduplicate_spans(spans, options):
 
 def convert_to_standoff(doc_fn, tag_fn, out_dir, options):
     NOTE_TYPE = 'AnnotatorNotes'
-    with open_file(doc_fn, options) as doc_f:
+    with open_file(doc_fn, 'r', options) as doc_f:
         doc_reader = DocReader(doc_f)
-        with open_file(tag_fn, options) as tag_f:
+        with open_file(tag_fn, 'r', options) as tag_f:
             # Read spans that include source information
             span_reader = SpanReader(tag_f, source=True)
             for doc in doc_reader:
@@ -65,9 +61,12 @@ def convert_to_standoff(doc_fn, tag_fn, out_dir, options):
                 for span in spans:
                     span.type = normalize_type(span.type)
                 spans = deduplicate_spans(spans, options)
-                with open(os.path.join(out_dir, f'{doc.id}.txt'), 'w') as f:
+                with open_file(os.path.join(out_dir, f'{doc.id}.txt'), 'w',
+                               options) as f:
                     print(doc.text.replace('\t', '\n'), file=f)
-                with open(os.path.join(out_dir, f'{doc.id}.ann'), 'w') as f:
+                with open_file(os.path.join(out_dir, f'{doc.id}.ann'), 'w',
+                               options) as f:
+                    n = 1
                     for i, span in enumerate(spans, start=1):
                         s, e = span.start, span.end+1    # end-exclusive
                         if len(span.sources) == 2:    # assume two sources
@@ -75,7 +74,12 @@ def convert_to_standoff(doc_fn, tag_fn, out_dir, options):
                         else:
                             t = f'{span.type}-{span.source}'
                         print(f'T{i}\t{t} {s} {e}\t{span.text}', file=f)
-                        
+                        for serial in span.serials:
+                            if serial != DUMMY_SERIAL:
+                                print(f'N{n}\tReference T{i} string:{serial}',
+                                      file=f)
+                                n += 1
+
 
 def main(argv):
     args = argparser().parse_args(argv[1:])
