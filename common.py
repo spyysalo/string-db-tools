@@ -338,4 +338,4 @@ if __name__ == '__main__':
     # Test I/O
     for fn in sys.argv[1:]:
         for doc in stream_documents(fn):
-            print(doc.doc_id, len(doc.text.split()), 'tokens')
+            print(doc.id, len(doc.text.split()), 'tokens')
